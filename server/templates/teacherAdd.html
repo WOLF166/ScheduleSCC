@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Авторизация</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f7f7f7;
+            margin: 0;
+            padding: 40px;
+        }
+        .nav-container {
+            max-width: 400px;
+            margin: 30px auto 0 auto;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .nav-btn {
+            flex: 1;
+            padding: 10px 0;
+            background: #e2e6ea;
+            color: #2a7ae2;
+            border: none;
+            border-radius: 4px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn.active, .nav-btn:hover {
+            background: #2a7ae2;
+            color: #fff;
+        }
+        .form-container {
+            background: #fff;
+            max-width: 400px;
+            margin: 30px auto;
+            padding: 30px 25px 20px 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 8px 10px;
+            margin-bottom: 18px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 15px;
+        }
+        button[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            background: #2a7ae2;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button[type="submit"]:hover {
+            background: #1a5bb8;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-container">
+        <button class="nav-btn active" onclick="location.href='login.html'">Авторизация</button>
+        <button class="nav-btn" onclick="location.href='add_teacher.html'">Добавить преподавателя</button>
+        <button class="nav-btn" onclick="location.href='add_subject.html'">Добавить предмет</button>
+        <button class="nav-btn" onclick="location.href='add_group.html'">Добавить группу</button>
+        <button class="nav-btn" onclick="location.href='add_schedule.html'">Добавить расписание</button>
+    </div>
+    <div class="form-container">
+        <h2>Авторизация</h2>
+        <form>
+            <label for="username">Логин:</label>
+            <input type="text" id="username" name="username" required>
+
+            <label for="password">Пароль:</label>
+            <input type="password" id="password" name="password" required>
+
+            <button type="submit">Войти</button>
+        </form>
+    </div>
+</body>
+</html>
