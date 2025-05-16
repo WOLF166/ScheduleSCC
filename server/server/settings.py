@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-b-6=3w^)gylz4lj(2#w2yf^lhrjn)84y8cd00shradb12%h%m=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "192.ip.0.104"]
+ALLOWED_HOSTS = ["localhost", "192.168.0.104"]
 
 mimetypes.add_type("application/javascript", ".js", True)
 
