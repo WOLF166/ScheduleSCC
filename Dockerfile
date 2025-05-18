@@ -24,12 +24,15 @@ RUN pip install --no-cache-dir -r requirements.txt
  
 # Copy the Django project to the container
 COPY . /app
- 
+
+# Создаем папку для статики (если её нет)
+RUN mkdir -p /app/server/static
+
 # Expose the Django port
 EXPOSE 8000
  
 # Run Django’s development server
 
-CMD ["python", "/server/manage.py" "migrate"]
+CMD ["python", "./server/manage.py" "migrate"]
 CMD ["python", "./server/manage.py", "collectstatic", "--noinput"]
 CMD ["python", "./server/manage.py", "runserver", "0.0.0.0:8000"]
