@@ -10,7 +10,7 @@ from datetime import date
 @sync_to_async
 def fetch_schedule_data(group):
     try:
-        response = requests.get(f'http://192.168.0.104:8000/getScheduleGroup?group={group}')
+        response = requests.get(f'http://' + "176.108.253.4" +':8000/getScheduleGroup?group={group}')
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
@@ -21,7 +21,7 @@ def fetch_schedule_data(group):
 @sync_to_async
 def fetch_groups():
     try:
-        response = requests.get('http://192.168.0.104:8000/getAllGroup')
+        response = requests.get(f'http://' + "176.108.253.4" +':8000/getAllGroup')
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
