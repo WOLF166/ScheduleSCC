@@ -33,8 +33,10 @@ EXPOSE 8000
  
 # Run Django’s development server
 
+WORKDIR /app
+
 CMD sh -c "\
     python server/manage.py migrate && \
     python server/manage.py collectstatic --noinput && \
-    daphne server.server.asgi:django_asgi_app --bind 0.0.0.0 --port 8000 \
+    daphne server.asgi:application --bind 0.0.0.0 --port 8000 \
 "

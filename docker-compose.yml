@@ -7,6 +7,9 @@ networks:
 services:
 
   app:
+    environment:
+      - DJANGO_SETTINGS_MODULE=server.settings
+      - DEBUG=1 
     build:
       context: .
       dockerfile: ./Dockerfile
