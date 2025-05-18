@@ -26,13 +26,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app
 
 # Создаем папку для статики (если её нет)
-RUN mkdir -p /app/server/static
+RUN mkdir -p /app/server/staticfiles
 
 # Expose the Django port
 EXPOSE 8000
  
 # Run Django’s development server
 
-CMD ["python", "./server/manage.py" "migrate"]
-CMD ["python", "./server/manage.py", "collectstatic", "--noinput"]
-CMD ["python", "./server/manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["sh", "-c", "
+    python ./server/manage.py migrate && 
+    python ./server/manage.py collectstatic --noinput && 
+    daphne server.asgi:application --bind 0.0.0.0 --port 8000
+"]
