@@ -1,44 +1,30 @@
 version: '3.8'
 
-networks:
-  network:
-   driver: bridge
-
 services:
-
   app:
+    build: .
     environment:
       - DJANGO_SETTINGS_MODULE=server.settings
-      - DEBUG=1 
+      - DEBUG=1
     volumes:
       - ./server:/app/server
-      - ./server/static:/app/server/staticfiles
-      - ./server/staticfiles:/app/server/staticfiles
+      - ./staticfiles:/app/server/staticfiles
     command: daphne -b 0.0.0.0 -p 8000 server.asgi:application
-    build:
-      context: .
-      dockerfile: ./Dockerfile
-    ports:
-      - '8000:8000'
     networks:
-      - network
+      - app_network
 
-  nginx:  # Отдельный сервис для Nginx
+  nginx:
     image: nginx:latest
     ports:
       - "80:80"
-      - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf  # Конфиг Nginx
-      - ./staticfiles:/var/www/static   # Новый volume
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./staticfiles:/app/server/staticfiles:ro
     depends_on:
-      - app  # Зависит от сервиса app
+      - app
     networks:
-      - default
+      - app_network
 
-volumes:
-  static_volume:  # Тома для хранения данных
-
-
-      
+networks:
+  app_network:
+    driver: bridge
