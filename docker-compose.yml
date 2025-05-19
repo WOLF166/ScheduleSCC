@@ -13,8 +13,6 @@ services:
     volumes:
       - ./server:/app/server
       - ./static:/app/static
-      - ./staticfiles:/app/staticfiles
-      - ./server/static:/app/server/static  # Добавляем конкретный путь
     command: daphne -b 0.0.0.0 -p 8000 server.asgi:application
     build:
       context: .

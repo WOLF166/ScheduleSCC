@@ -129,12 +129,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # Куда collectstatic копирует
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # Только для production
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),  # Где искать статику
-    os.path.join(BASE_DIR, 'server/static'),  # Добавляем путь к вашей папке
+    BASE_DIR / 'static',  # Основная папка разработки
+    BASE_DIR / 'server' / 'static'  # Если нужно сохранить отдельно
 ]
-
 
 
 # Default primary key field type
