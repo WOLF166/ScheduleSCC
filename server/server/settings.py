@@ -16,7 +16,7 @@ import reactpy_django
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+SECURE_CROSS_ORIGIN_OPENER_POLICY=None
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-b-6=3w^)gylz4lj(2#w2yf^lhrjn)84y8cd00shradb12%h%m=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["176.108.253.4", "127.0.0.1"]
+ALLOWED_HOSTS = ["176.108.253.4", "127.0.0.1", "localhost"]
 
 mimetypes.add_type("application/javascript", ".js", True)
 
