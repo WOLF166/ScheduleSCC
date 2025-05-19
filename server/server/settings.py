@@ -132,9 +132,9 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # Куда collectstatic будет собирать файлы
 STATICFILES_DIRS = [
-    BASE_DIR / 'staticfiles',  # Основная папка разработки
+    BASE_DIR / 'static',  # Основная папка разработки
     # Путь к статике reactpy-django
-    os.path.join(os.path.dirname(reactpy_django.__file__), 'static'),
+    os.path.join(os.path.dirname(reactpy_django.__file__), 'staticfiles'),
 ]
 
 
