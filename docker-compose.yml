@@ -12,8 +12,8 @@ services:
       - DEBUG=1 
     volumes:
       - ./server:/app/server
-       - ./server/static:/app/server/static
-  - ./server/staticfiles:/app/server/staticfiles
+      - ./server/static:/app/server/static
+      - ./server/staticfiles:/app/server/staticfiles
     command: daphne -b 0.0.0.0 -p 8000 server.asgi:application
     build:
       context: .
