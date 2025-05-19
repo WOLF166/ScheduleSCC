@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import mimetypes
 import os
 from pathlib import Path
+import reactpy_django
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -129,10 +130,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'  # Только для production
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # Куда collectstatic будет собирать файлы
 STATICFILES_DIRS = [
     BASE_DIR / 'static',  # Основная папка разработки
-    BASE_DIR / 'server' / 'static'  # Если нужно сохранить отдельно
+    # Путь к статике reactpy-django
+    os.path.join(os.path.dirname(reactpy_django.__file__), 'static'),
 ]
 
 
