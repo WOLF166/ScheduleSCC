@@ -12,8 +12,9 @@ services:
       - DEBUG=1 
     volumes:
       - ./server:/app/server
-      - ./staticfiles:/app/staticfiles  # Для production
       - ./static:/app/static
+      - ./staticfiles:/app/staticfiles
+      - ./server/static:/app/server/static  # Добавляем конкретный путь
     command: daphne -b 0.0.0.0 -p 8000 server.asgi:application
     build:
       context: .
