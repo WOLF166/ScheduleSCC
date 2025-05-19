@@ -24,13 +24,20 @@ services:
   nginx:  # Отдельный сервис для Nginx
     image: nginx:latest
     ports:
-      - "8080:80"
+      - "80:80"
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf  # Конфиг Nginx
     depends_on:
       - app  # Зависит от сервиса app
+    networks:
+      - default
 
 volumes:
   static_volume:  # Тома для хранения данных
+
+networks:
+  default:
+    name: schedulescc_network
+    driver: bridge
       
