@@ -167,3 +167,9 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
+
+REACTPY_BACKEND_OPTIONS = {
+    "websocket": {
+        "url": "ws://176.108.253.4/reactpy/",
+    }
+}
