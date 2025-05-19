@@ -12,7 +12,7 @@ services:
       - DEBUG=1 
     volumes:
       - ./server:/app/server
-    command: daphne -b 0.0.0.0 -p 8000 ScheduleSCC.asgi:application
+    command: daphne -b 0.0.0.0 -p 8000 server.asgi:application
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -28,7 +28,6 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf  # Конфиг Nginx
-      - static_volume:/app/server/staticfiles  # Общие тома со статикой
     depends_on:
       - app  # Зависит от сервиса app
 
