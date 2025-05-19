@@ -12,6 +12,8 @@ services:
       - DEBUG=1 
     volumes:
       - ./server:/app/server
+      - ./staticfiles:/app/staticfiles  # Для production
+      - ./static:/app/static
     command: daphne -b 0.0.0.0 -p 8000 server.asgi:application
     build:
       context: .
@@ -28,6 +30,8 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf  # Конфиг Nginx
+      - ./staticfiles:/var/www/static   # Новый volume
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - app  # Зависит от сервиса app
     networks:
