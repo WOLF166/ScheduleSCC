@@ -129,10 +129,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'  # Только для production
+STATIC_ROOT = os.path.join(BASE_DIR, 'server', 'staticfiles')  # Куда collectstatic собирает
 STATICFILES_DIRS = [
-    BASE_DIR / 'static',  # Основная папка разработки
-    BASE_DIR / 'server' / 'static'  # Если нужно сохранить отдельно
+    os.path.join(BASE_DIR, 'static'),  # Основная папка
+    # Путь к статике reactpy-django
+    os.path.join(os.path.dirname(reactpy_django.__file__), 'static'),
 ]
 
 
