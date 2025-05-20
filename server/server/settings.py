@@ -131,6 +131,9 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [
+    os.path.join(os.path.dirname(reactpy_django.__file__), 'static'),
+]
 
 REACTPY_STATIC_ROOT = os.path.join(STATIC_ROOT, 'reactpy_django')
 if not os.path.exists(REACTPY_STATIC_ROOT):
