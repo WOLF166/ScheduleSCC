@@ -2,15 +2,13 @@ version: '3.8'
 
 services:
   app:
-    command: daphne -b 0.0.0.0 -p 8000 server.asgi:application
     build: .
     environment:
       - DJANGO_SETTINGS_MODULE=server.settings
-      - DEBUG=1
-      - REACTPY_WEBSOCKET_URL=ws://176.108.253.4/reactpy/
     volumes:
       - ./server:/app/server
-      - ./staticfiles:/app/server/staticfiles
+      - ./staticfiles:/app/server/staticfiles  # Единая точка монтирования
+    command: daphne -b 0.0.0.0 -p 8000 server.asgi:application
     networks:
       - app_network
 
@@ -20,7 +18,7 @@ services:
       - "80:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - ./staticfiles:/app/server/staticfiles:ro
+      - ./staticfiles:/app/server/staticfiles:ro  # Только чтение
     depends_on:
       - app
     networks:
