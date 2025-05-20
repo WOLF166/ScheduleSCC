@@ -7,7 +7,7 @@ services:
       - DJANGO_SETTINGS_MODULE=server.settings
     volumes:
       - ./server:/app/server
-      - ./staticfiles:/app/server/staticfiles  # Единая точка монтирования
+      - static_volume:/app/server/staticfiles  # Используем именованный volume
     command: daphne -b 0.0.0.0 -p 8000 server.asgi:application
     networks:
       - app_network
@@ -18,11 +18,14 @@ services:
       - "80:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - ./staticfiles:/app/server/staticfiles:ro  # Только чтение
+      - static_volume:/app/server/staticfiles:ro  # Тот же volume
     depends_on:
       - app
     networks:
       - app_network
+
+volumes:
+  static_volume:  # Общий volume для статики
 
 networks:
   app_network:
