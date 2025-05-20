@@ -131,6 +131,11 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+REACTPY_STATIC_ROOT = os.path.join(STATIC_ROOT, 'reactpy_django')
+if not os.path.exists(REACTPY_STATIC_ROOT):
+    os.makedirs(REACTPY_STATIC_ROOT)
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
