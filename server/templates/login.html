@@ -1,0 +1,78 @@
+<!-- templates/login.html -->
+{% load static %}
+<html>
+<head>
+    <title>Вход диспетчера</title>
+    <style>
+        body {
+            background: #f8f9fa;
+            font-family: Segoe UI, Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .login-container {
+            background: #fff;
+            padding: 2.5rem 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,85,165,0.12);
+            width: 350px;
+        }
+        .login-container h2 {
+            color: #0055A5;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .login-container label {
+            display: block;
+            margin-bottom: .5rem;
+            color: #333;
+        }
+        .login-container input[type="text"],
+        .login-container input[type="password"] {
+            width: 100%;
+            padding: .7rem 1rem;
+            margin-bottom: 1.2rem;
+            border: 1px solid #ced4da;
+            border-radius: 7px;
+            font-size: 1rem;
+        }
+        .login-container button {
+            width: 100%;
+            background: #0055A5;
+            color: #fff;
+            padding: .8rem 0;
+            border: none;
+            border-radius: 7px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background .2s;
+        }
+        .login-container button:hover {
+            background: #003f7a;
+        }
+        .error {
+            color: #c00;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2>Вход диспетчера</h2>
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <label for="login">Логин</label>
+            <input type="text" id="login" name="login" required>
+            <label for="password">Пароль</label>
+            <input type="password" id="password" name="password" required>
+            <button type="submit">Войти</button>
+        </form>
+    </div>
+</body>
+</html>

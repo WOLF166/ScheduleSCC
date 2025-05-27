@@ -28,6 +28,9 @@ class Schedule(models.Model):
     endTime = models.TextField()
 
 
-
+class Dispatcher(models.Model):
+    id = models.IntegerField(primary_key=True)
+    login = models.TextField()
+    password = models.TextField()
 
 

@@ -16,29 +16,57 @@ Including another URLconf
 """
 from django.urls import path, include
 from reactpy_django.components import view_to_component
+from django.contrib import admin
 
 import ap.components
 from ap import views
 
 
 urlpatterns = [
-    path("", views.page),
-    path("schadd/<int:id>/<int:groupId>/<int:teacherId>/<int:subjectId>/<int:day>/<int:week>/"
-         "<str:room>/<str:startTime>/<str:endTime>", views.schadd),
+    # path("", views.page),
+    # path("schadd/<int:id>/<int:groupId>/<int:teacherId>/<int:subjectId>/<int:day>/<int:week>/"
+    #      "<str:room>/<str:startTime>/<str:endTime>", views.schadd),
 
-    path("subjadd/<int:id>/<str:name>", views.subjadd),
-    path("techadd/<int:id>/<str:name>", views.techadd),
-    path("gradd/<int:id>/<str:name>", views.gradd),
-    # get next
-    path("getScheduleGroup", views.getSchedule),
-    path("getScheduleAll", views.getScheduleAll),
-    # path("getScheduleAllForWeb", views.getScheduleAllForWeb),
+    # path("subjadd/<int:id>/<str:name>", views.subjadd),
+    # path("techadd/<int:id>/<str:name>", views.techadd),
+    # path("gradd/<int:id>/<str:name>", views.gradd),
+
+
+
+    path("api/getScheduleGroup", views.getSchedule),
     path("getScheduleTeachers", views.getScheduleTeachers),
-    path("getAllGroup", views.getAllGroup),
+    path("api/getAllGroup", views.getAllGroup),
     path("getAllTeachers", views.getAllTeachers),
     path("getAllSubjects", views.getAllSubjects),
-    path("schedule", views.mainSchedule),
+
+
+    path('admin/', admin.site.urls),
+    path('dispatcher/login/', views.dispatcher_login_view, name="dispatcher_login"),
+    path('dispatcher/dashboard/', views.dispatcher_dashboard_view, name="dispatcher_dashboard"),
+    path('dispatcher/logout/', views.dispatcher_logout_view, name="dispatcher_logout"),
+
+    path('api/teachers/', views.teachers_list, name='teachers_list'),
+    path('api/teachers/add/', views.add_teacher, name='add_teacher'),
+    path('api/groups/', views.groups_list, name='groups_list'),
+    path('api/groups/add/', views.add_group, name='add_group'),
+    path('api/subjects/', views.subjects_list, name='subjects_list'),
+    path('api/subjects/add/', views.add_subject, name='add_subject'),
+    path('api/schedules/add/', views.add_schedule, name='add_schedule'),
+
+    # Teacher
+    path('api/teachers/<int:teacher_id>/', views.update_teacher, name='update_teacher'),
+    path('api/teachers/<int:teacher_id>/delete/', views.delete_teacher, name='delete_teacher'),
+
+    # Group
+    path('api/groups/<int:group_id>/', views.update_group, name='update_group'),
+    path('api/groups/<int:group_id>/delete/', views.delete_group, name='delete_group'),
+
+    # Subject
+    path('api/subjects/<int:subject_id>/', views.update_subject, name='update_subject'),
+    path('api/subjects/<int:subject_id>/delete/', views.delete_subject, name='delete_subject'),
+
+    path("", views.mainSchedule),
     # пути reactpy
-    path("schedule", view_to_component(ap.components.renderSchedulePage)),
+    path("", view_to_component(ap.components.renderSchedulePage)),
 
 ]
