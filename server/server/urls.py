@@ -51,7 +51,8 @@ urlpatterns = [
     path('api/groups/add/', views.add_group, name='add_group'),
     path('api/subjects/', views.subjects_list, name='subjects_list'),
     path('api/subjects/add/', views.add_subject, name='add_subject'),
-    path('api/schedules/add/', views.add_schedule, name='add_schedule'),
+    path('api/schedule/', views.schedule_list, name='subjects_list'),
+    path('api/schedule/add/', views.add_schedule, name='add_schedule'),
 
     # Teacher
     path('api/teachers/<int:teacher_id>/', views.update_teacher, name='update_teacher'),
@@ -64,6 +65,10 @@ urlpatterns = [
     # Subject
     path('api/subjects/<int:subject_id>/', views.update_subject, name='update_subject'),
     path('api/subjects/<int:subject_id>/delete/', views.delete_subject, name='delete_subject'),
+
+    # Schedule
+    path('api/schedule/<int:schedule_id>/', views.update_schedule, name='update_schedule'),
+    path('api/schedule/<int:schedule_id>/delete/', views.delete_schedule, name='delete_schedule'),
 
     path("", views.mainSchedule),
     # пути reactpy

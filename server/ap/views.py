@@ -429,3 +429,97 @@ def delete_subject(request, subject_id):
 
     subject.delete()
     return JsonResponse({"result": "Subject deleted"}, status=204)
+
+
+@require_http_methods(["PUT"])
+@csrf_exempt
+@dispatcher_required
+def update_schedule(request, schedule_id):
+    try:
+        schedule = Schedule.objects.get(id=schedule_id)
+    except Schedule.DoesNotExist:
+        return JsonResponse({"error": "Schedule not found"}, status=404)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    # Проверяем и обновляем поля
+    group_id = data.get("groupId")
+    teacher_id = data.get("teacherId")
+    subject_id = data.get("subjectId")
+    day = data.get("day")
+    week = data.get("week")
+    room = data.get("room")
+    start_time = data.get("startTime")
+    end_time = data.get("endTime")
+
+    if group_id:
+        try:
+            group = Group.objects.get(id=group_id)
+            schedule.groupId = group
+        except Group.DoesNotExist:
+            return JsonResponse({"error": "Group not found"}, status=404)
+
+    if teacher_id:
+        try:
+            teacher = Teacher.objects.get(id=teacher_id)
+            schedule.teacherId = teacher
+        except Teacher.DoesNotExist:
+            return JsonResponse({"error": "Teacher not found"}, status=404)
+
+    if subject_id:
+        try:
+            subject = Subject.objects.get(id=subject_id)
+            schedule.subjectId = subject
+        except Subject.DoesNotExist:
+            return JsonResponse({"error": "Subject not found"}, status=404)
+
+    if day:
+        schedule.day = day
+
+    if week is not None:
+        schedule.week = week
+
+    if room is not None:
+        schedule.room = room
+
+    if start_time is not None:
+        schedule.startTime = start_time
+
+    if end_time is not None:
+        schedule.endTime = end_time
+
+    schedule.save()
+
+    return JsonResponse({
+        "id": schedule.id,
+        "groupId": schedule.groupId.id,
+        "teacherId": schedule.teacherId.id,
+        "subjectId": schedule.subjectId.id,
+        "day": schedule.day.isoformat(),
+        "week": schedule.week,
+        "room": schedule.room,
+        "startTime": schedule.startTime,
+        "endTime": schedule.endTime,
+    }, status=200)
+
+
+@require_http_methods(["DELETE"])
+@csrf_exempt
+@dispatcher_required
+def delete_schedule(request, schedule_id):
+    try:
+        schedule = Schedule.objects.get(id=schedule_id)
+    except Schedule.DoesNotExist:
+        return JsonResponse({"error": "Schedule not found"}, status=404)
+
+    schedule.delete()
+    return JsonResponse({"result": "Schedule deleted"}, status=204)
+
+
+@require_http_methods(["GET"])
+def schedule_list(request):
+    schedule = list(Schedule.objects.values("id", "groupId", "teacherId", "subjectId", "day", "week", "room", "startTime", "endTime"))
+    return JsonResponse(schedule, safe=False)

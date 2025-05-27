@@ -2,6 +2,7 @@ import asyncio
 from asgiref.sync import sync_to_async
 from reactpy import component, html, use_state, use_effect, event
 import requests
+import datetime
 from datetime import date
 
 DISPATCHER_COOKIE_VALUE = "dispatcher_id"
@@ -92,6 +93,32 @@ def delete_subject(id_):
     cookies = {"dispatcher_id": DISPATCHER_COOKIE_VALUE}
     return requests.delete(f"http://localhost:8000/api/subjects/{id_}/delete/", cookies=cookies)
 
+@sync_to_async
+def fetch_schedule():
+    r = requests.get("http://localhost:8000/api/schedule/")
+    r.raise_for_status()
+    return r.json()
+
+@sync_to_async
+def post_schedule(data):
+    cookies = {"dispatcher_id": DISPATCHER_COOKIE_VALUE}
+    r = requests.post("http://localhost:8000/api/schedule/add/", json=data, cookies=cookies)
+    r.raise_for_status()
+    return r
+
+@sync_to_async
+def update_schedule(id_, data):
+    cookies = {"dispatcher_id": DISPATCHER_COOKIE_VALUE}
+    r = requests.put(f"http://localhost:8000/api/schedule/{id_}/", json=data, cookies=cookies)
+    r.raise_for_status()
+    return r
+
+@sync_to_async
+def delete_schedule(id_):
+    cookies = {"dispatcher_id": DISPATCHER_COOKIE_VALUE}
+    r = requests.delete(f"http://localhost:8000/api/schedule/{id_}/delete/", cookies=cookies)
+    r.raise_for_status()
+    return r
 
 # styles
 
@@ -106,6 +133,13 @@ main_style = {
     "flexDirection": "column",
     "alignItems": "center",
     "color": "#2c3e50",
+}
+
+button = {
+    "all": "unset",
+    "display": "block",
+    "width": "100%",
+    "cursor": "pointer",
 }
 
 header_style = {
@@ -351,7 +385,312 @@ def ScheduleComponent():
 def renderSchedulePage():
     return ScheduleComponent()
 
+@component
+def DeleteButton(*, onClick):
+    hovered, set_hovered = use_state(False)
+    style = {
+        "backgroundColor": "#e74c3c",
+        "color": "#fff",
+        "border": "none",
+        "padding": "0.4rem 1rem",
+        "marginRight": "0.5rem",
+        "borderRadius": "12px",  # скруглённые углы
+        "cursor": "pointer",
+        "fontSize": "0.9rem",
+        "fontWeight": "600",
+        "boxShadow": "0 4px 8px rgba(231, 76, 60, 0.4)",
+        "transition": "background-color 0.3s ease, box-shadow 0.3s ease",
+        "userSelect": "none",
+        "outline": "none",
+    }
+    if hovered:
+        style.update({
+            "backgroundColor": "#c0392b",
+            "boxShadow": "0 6px 12px rgba(192, 57, 43, 0.6)",
+        })
+    return html.button({
+        "style": style,
+        "onMouseEnter": lambda e: set_hovered(True),
+        "onMouseLeave": lambda e: set_hovered(False),
+        "onClick": onClick,
+        "type": "button",
+        "title": "Удалить запись",
+    }, "Удалить")
 
+
+@component
+def ScheduleForm(
+    *,
+    styles,
+    groups,
+    teachers,
+    subjects,
+    schedule,
+    loading,
+    set_message,
+    set_error_message,
+    set_loading,
+    load_all_data,
+):
+    subject_map = {str(s["id"]): s["name"] for s in subjects}
+    teacher_map = {str(t["id"]): t["name"] for t in teachers}
+    group_map = {str(g["id"]): g["name"] for g in groups}
+
+    schedule_group_id, set_schedule_group_id = use_state(str(groups[0]["id"]) if groups else "")
+    schedule_teacher_id, set_schedule_teacher_id = use_state(str(teachers[0]["id"]) if teachers else "")
+    schedule_subject_id, set_schedule_subject_id = use_state(str(subjects[0]["id"]) if subjects else "")
+    schedule_day, set_schedule_day = use_state(datetime.date.today().isoformat())
+    schedule_week, set_schedule_week = use_state(1)
+    schedule_room, set_schedule_room = use_state("")
+    schedule_start, set_schedule_start = use_state("")
+    schedule_end, set_schedule_end = use_state("")
+
+    selected_view_group, set_selected_view_group = use_state(str(groups[0]["id"]) if groups else "")
+
+    editing_schedule_id, set_editing_schedule_id = use_state(None)
+    editing_values, set_editing_values = use_state({})
+
+    use_effect(lambda: set_schedule_group_id(str(groups[0]["id"])) if groups and not schedule_group_id else None, [groups])
+    use_effect(lambda: set_schedule_teacher_id(str(teachers[0]["id"])) if teachers and not schedule_teacher_id else None, [teachers])
+    use_effect(lambda: set_schedule_subject_id(str(subjects[0]["id"])) if subjects and not schedule_subject_id else None, [subjects])
+    use_effect(lambda: set_selected_view_group(str(groups[0]["id"])) if groups and not selected_view_group else None, [groups])
+
+    def on_excel_file_change(e):
+        set_message("Файл выбран. Загрузка будет реализована позже.")
+
+    @event(prevent_default=True)
+    async def submit_schedule(e):
+        set_loading(True)
+        set_message("")
+        set_error_message("")
+        try:
+            data = {
+                "groupId": schedule_group_id,
+                "teacherId": schedule_teacher_id,
+                "subjectId": schedule_subject_id,
+                "day": schedule_day,
+                "week": schedule_week,
+                "room": schedule_room,
+                "startTime": schedule_start,
+                "endTime": schedule_end,
+            }
+            resp = await post_schedule(data)
+            if resp.status_code == 201:
+                set_message("Запись добавлена")
+                set_schedule_room("")
+                set_schedule_start("")
+                set_schedule_end("")
+                await load_all_data()
+            else:
+                set_error_message(f"Ошибка: {resp.text}")
+        except Exception as ex:
+            set_error_message(f"Ошибка: {ex}")
+        set_loading(False)
+
+    @event(prevent_default=True)
+    async def save_schedule_edit(e):
+        set_loading(True)
+        set_message("")
+        set_error_message("")
+        try:
+            resp = await update_schedule(editing_schedule_id, editing_values)
+            if resp.status_code in (200, 204):
+                set_message("Запись обновлена")
+                set_editing_schedule_id(None)
+                set_editing_values({})
+                await load_all_data()
+            else:
+                set_error_message(f"Ошибка: {resp.text}")
+        except Exception as ex:
+            set_error_message(f"Ошибка: {ex}")
+        set_loading(False)
+
+    async def on_delete_schedule(id_):
+        set_loading(True)
+        set_message("")
+        set_error_message("")
+        try:
+            resp = await delete_schedule(id_)
+            if resp.status_code in (200, 204):
+                set_message("Запись удалена")
+                await load_all_data()
+            else:
+                set_error_message(f"Ошибка: {resp.text}")
+        except Exception as ex:
+            set_error_message(f"Ошибка: {ex}")
+        set_loading(False)
+
+    filtered_schedule = [item for item in schedule if str(item.get("groupId")) == selected_view_group]
+
+    def ScheduleTable():
+        rows = []
+        for s in filtered_schedule:
+            if editing_schedule_id == s["id"]:
+                rows.append(html.tr(
+                    html.td(html.input({
+                        "type": "text",
+                        "value": editing_values.get("room", s["room"]),
+                        "onChange": lambda e: set_editing_values({**editing_values, "room": e["target"]["value"]}),
+                        "style": styles["input_inline"],
+                    })),
+                    html.td(html.input({
+                        "type": "date",
+                        "value": editing_values.get("day", s["day"]),
+                        "onChange": lambda e: set_editing_values({**editing_values, "day": e["target"]["value"]}),
+                        "style": styles["input_inline"],
+                    })),
+                    html.td(html.input({
+                        "type": "number",
+                        "value": editing_values.get("week", s["week"]),
+                        "onChange": lambda e: set_editing_values({**editing_values, "week": int(e["target"]["value"])}),
+                        "style": styles["input_inline"],
+                    })),
+                    html.td(html.input({
+                        "type": "text",
+                        "value": editing_values.get("startTime", s["startTime"]),
+                        "onChange": lambda e: set_editing_values({**editing_values, "startTime": e["target"]["value"]}),
+                        "style": styles["input_inline"],
+                    })),
+                    html.td(html.input({
+                        "type": "text",
+                        "value": editing_values.get("endTime", s["endTime"]),
+                        "onChange": lambda e: set_editing_values({**editing_values, "endTime": e["target"]["value"]}),
+                        "style": styles["input_inline"],
+                    })),
+                    html.td(html.select({
+                        "value": editing_values.get("subjectId", str(s["subjectId"])),
+                        "onChange": lambda e: set_editing_values({**editing_values, "subjectId": e["target"]["value"]}),
+                        "style": styles["input_inline"],
+                    }, [html.option({"value": str(sub["id"])}, sub["name"]) for sub in subjects])),
+                    html.td(html.select({
+                        "value": editing_values.get("teacherId", str(s["teacherId"])),
+                        "onChange": lambda e: set_editing_values({**editing_values, "teacherId": e["target"]["value"]}),
+                        "style": styles["input_inline"],
+                    }, [html.option({"value": str(teach["id"])}, teach["name"]) for teach in teachers])),
+                    html.td(
+                        html.button({"style": styles["action_button"], "onClick": save_schedule_edit}, "Сохранить"),
+                        html.button({"style": styles["action_button"], "onClick": lambda e: set_editing_schedule_id(None)}, "Отмена"),
+                    ),
+                ))
+            else:
+                rows.append(html.tr(
+                    html.td(s["room"]),
+                    html.td(s["day"]),
+                    html.td(s["week"]),
+                    html.td(s["startTime"]),
+                    html.td(s["endTime"]),
+                    html.td(subject_map.get(str(s.get("subjectId")), "—")),
+                    html.td(teacher_map.get(str(s.get("teacherId")), "—")),
+                    html.td(
+                        html.button({"style": styles["action_button"], "onClick": lambda e, id=s["id"]: (set_editing_schedule_id(id), set_editing_values({}))}, "Редактировать"),
+                        DeleteButton(onClick=lambda e, id=s["id"]: asyncio.create_task(on_delete_schedule(id))),
+                    ),
+                ))
+        return html.table(
+            {"style": styles["table"]},
+            html.thead(
+                html.tr(
+                    html.th("Кабинет"),
+                    html.th("Дата"),
+                    html.th("Неделя"),
+                    html.th("Начало"),
+                    html.th("Конец"),
+                    html.th("Предмет"),
+                    html.th("Преподаватель"),
+                    html.th("Действия"),
+                )
+            ),
+            html.tbody(rows)
+        )
+
+    return html.div(
+        {"style": styles["form"]},
+        html.h3("Загрузка расписания из Excel"),
+        html.input({
+            "type": "file",
+            "accept": ".xlsx,.xls",
+            "onChange": on_excel_file_change,
+            "style": {"marginBottom": "1rem"},
+        }),
+        html.h3("Добавить расписание вручную"),
+        html.form(
+            {"onSubmit": submit_schedule},
+            html.label({"style": styles["label"]}, "Группа"),
+            html.select({
+                "value": schedule_group_id,
+                "onChange": lambda e: set_schedule_group_id(e["target"]["value"]),
+                "style": styles["input"],
+            }, [html.option({"value": g["id"]}, g["name"]) for g in groups]),
+
+            html.label({"style": styles["label"]}, "Преподаватель"),
+            html.select({
+                "value": schedule_teacher_id,
+                "onChange": lambda e: set_schedule_teacher_id(e["target"]["value"]),
+                "style": styles["input"],
+            }, [html.option({"value": t["id"]}, t["name"]) for t in teachers]),
+
+            html.label({"style": styles["label"]}, "Предмет"),
+            html.select({
+                "value": schedule_subject_id,
+                "onChange": lambda e: set_schedule_subject_id(e["target"]["value"]),
+                "style": styles["input"],
+            }, [html.option({"value": s["id"]}, s["name"]) for s in subjects]),
+
+            html.label({"style": styles["label"]}, "Дата"),
+            html.input({
+                "type": "date",
+                "value": schedule_day,
+                "onChange": lambda e: set_schedule_day(e["target"]["value"]),
+                "style": styles["input"],
+            }),
+
+            html.label({"style": styles["label"]}, "Неделя"),
+            html.input({
+                "type": "number",
+                "value": schedule_week,
+                "onChange": lambda e: set_schedule_week(int(e["target"]["value"])),
+                "style": styles["input"],
+            }),
+
+            html.label({"style": styles["label"]}, "Кабинет"),
+            html.input({
+                "type": "text",
+                "value": schedule_room,
+                "onChange": lambda e: set_schedule_room(e["target"]["value"]),
+                "style": styles["input"],
+            }),
+
+            html.label({"style": styles["label"]}, "Начало"),
+            html.input({
+                "type": "text",
+                "value": schedule_start,
+                "onChange": lambda e: set_schedule_start(e["target"]["value"]),
+                "style": styles["input"],
+            }),
+
+            html.label({"style": styles["label"]}, "Конец"),
+            html.input({
+                "type": "text",
+                "value": schedule_end,
+                "onChange": lambda e: set_schedule_end(e["target"]["value"]),
+                "style": styles["input"],
+            }),
+
+            html.button({
+                "type": "submit",
+                "style": styles["button"],
+                "disabled": loading,
+            }, "Добавить запись"),
+        ),
+        html.h3("Выберите группу для просмотра расписания"),
+        html.select({
+            "value": selected_view_group,
+            "onChange": lambda e: set_selected_view_group(e["target"]["value"]),
+            "style": styles["input"],
+        }, [html.option({"value": g["id"]}, g["name"]) for g in groups]),
+        html.h3("Текущее расписание"),
+        ScheduleTable()
+    )
 # диспетчер
 
 @component
@@ -375,8 +714,8 @@ def DispatcherDashboard(logout_url="/dispatcher/logout/"):
             "boxShadow": "2px 0 12px rgba(0,0,0,0.1)",
         },
         "sidebar_button": {
-            "background": "#223042",
-            "color": "#fff",
+            "backgroundColor": "transparent",
+            "color": "#ecf0f1",
             "fontWeight": "400",
             "border": "none",
             "width": "100%",
@@ -386,14 +725,15 @@ def DispatcherDashboard(logout_url="/dispatcher/logout/"):
             "textAlign": "left",
             "cursor": "pointer",
             "borderRadius": "6px",
-            "transition": "background 0.2s, color 0.2s",
+            "transition": "background-color 0.2s, color 0.2s",
             "userSelect": "none",
             "outline": "none",
         },
+
         "sidebar_button_active": {
             "backgroundColor": "#34495e",
-            "fontWeight": "700",
             "color": "#fff",
+            "fontWeight": "700",
         },
         "content": {
             "flexGrow": "1",
@@ -532,14 +872,11 @@ def DispatcherDashboard(logout_url="/dispatcher/logout/"):
             t = await fetch_teachers()
             g = await fetch_groups()
             s = await fetch_subjects()
+            sched = await fetch_schedule()
             set_teachers(t)
             set_groups(g)
             set_subjects(s)
-            if g and selected_group_id is None:
-                set_selected_group_id(str(g[0]["id"]))
-                sched = await fetch_schedule_data(g[0]["id"])
-                set_schedule(sched)
-            set_error_message("")
+            set_schedule(sched)
         except Exception as e:
             set_error_message(f"Ошибка загрузки данных: {e}")
 
@@ -566,6 +903,9 @@ def DispatcherDashboard(logout_url="/dispatcher/logout/"):
         base = dict(styles["sidebar_button"])
         if active_form == name:
             base.update(styles["sidebar_button_active"])
+        else:
+            base["color"] = "#fff"
+            base["backgroundColor"] = "#223042"
         return base
 
     def button_style(is_disabled=False):
@@ -842,63 +1182,6 @@ def DispatcherDashboard(logout_url="/dispatcher/logout/"):
             html.tbody(rows)
         )
 
-    def ScheduleTable():
-        if not schedule:
-            return html.div({"style": {"marginTop": "1rem", "fontStyle": "italic", "color": "#777"}},
-                            "Расписание пустое или не выбрана группа.")
-        rows = []
-        for item in schedule:
-            rows.append(html.tr(
-                html.td({"style": styles["td"]}, item.get("room", "")),
-                html.td({"style": styles["td"]}, item.get("subject", "")),
-                html.td({"style": styles["td"]}, item.get("teacher", "")),
-                html.td({"style": styles["td"]}, item.get("startTime", "")),
-                html.td({"style": styles["td"]}, item.get("day", "")),
-            ))
-        return html.table(
-            {"style": styles["table"]},
-            html.thead(
-                html.tr(
-                    html.th({"style": styles["th"]}, "Кабинет"),
-                    html.th({"style": styles["th"]}, "Предмет"),
-                    html.th({"style": styles["th"]}, "Преподаватель"),
-                    html.th({"style": styles["th"]}, "Время начала"),
-                    html.th({"style": styles["th"]}, "День"),
-                )
-            ),
-            html.tbody(rows)
-        )
-
-    def ScheduleForm():
-        return html.div(
-            {"style": {"maxWidth": "900px"}},
-            html.label({"style": styles["label"]}, "Выберите группу для просмотра расписания"),
-            html.select({
-                "value": selected_group_id or "",
-                "onChange": on_group_change,
-                "required": True,
-                "style": styles["input"],
-            },
-                [html.option({"value": str(g["id"])}, g["name"]) for g in groups]
-            ),
-            ScheduleTable()
-        )
-
-    def ScheduleForm():
-        return html.div(
-            {"style": {"maxWidth": "900px"}},
-            html.label({"style": styles["label"]}, "Выберите группу для просмотра расписания"),
-            html.select({
-                "value": selected_group_id or "",
-                "onChange": on_group_change,
-                "required": True,
-                "style": styles["input"],
-            },
-                [html.option({"value": str(g["id"])}, g["name"]) for g in groups]
-            ),
-            ScheduleTable()
-        )
-
     def TeacherForm():
         return html.div(
             {"style": styles["form"]},
@@ -975,7 +1258,18 @@ def DispatcherDashboard(logout_url="/dispatcher/logout/"):
         "teacher": TeacherForm,
         "group": GroupForm,
         "subject": SubjectForm,
-        "schedule": ScheduleForm,
+        "schedule": lambda: ScheduleForm(
+            styles=styles,
+            groups=groups,
+            teachers=teachers,
+            subjects=subjects,
+            schedule=schedule,
+            loading=loading,
+            set_message=set_message,
+            set_error_message=set_error_message,
+            set_loading=set_loading,
+            load_all_data=load_data,
+        ),
     }
 
     return html.div(
