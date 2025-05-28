@@ -1,7 +1,11 @@
 import json
+import datetime
+
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, HttpResponseNotFound, JsonResponse
 # disp
+from openpyxl import load_workbook
+
 from .models import Dispatcher
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -493,3 +497,143 @@ def delete_schedule(request, schedule_id):
 def schedule_list(request):
     schedule = list(Schedule.objects.values("id", "groupId", "teacherId", "subjectId", "day", "week", "room", "startTime", "endTime"))
     return JsonResponse(schedule, safe=False)
+
+# -------------------------------
+
+
+def parse_weeks(weeks_str):
+    """
+    Парсит строку с неделями вида "1-3,5,7-9" в список чисел [1,2,3,5,7,8,9]
+    """
+    weeks = set()
+    for part in weeks_str.split(","):
+        part = part.strip()
+        if "-" in part:
+            start, end = part.split("-")
+            weeks.update(range(int(start), int(end) + 1))
+        elif part.isdigit():
+            weeks.add(int(part))
+    return sorted(weeks)
+
+
+def get_date_for_week_and_day(first_date, first_weekday_name, target_week, target_weekday_name):
+    """
+    Вычисляет дату занятия по дате первого учебного дня, названию первого дня недели,
+    номеру недели и названию дня недели занятия.
+    """
+    days_map = {
+        "понедельник": 0,
+        "вторник": 1,
+        "среда": 2,
+        "четверг": 3,
+        "пятница": 4,
+        "суббота": 5,
+        "воскресенье": 6,
+    }
+
+    first_weekday = days_map.get(first_weekday_name.lower())
+    target_weekday = days_map.get(target_weekday_name.lower())
+
+    if first_weekday is None or target_weekday is None:
+        raise ValueError(f"Неизвестный день недели: {first_weekday_name} или {target_weekday_name}")
+
+    # Коррекция даты первого учебного дня до понедельника той недели
+    first_monday = first_date - datetime.timedelta(days=first_weekday)
+
+    # Дата занятия = первый понедельник + (неделя-1)*7 + смещение по дню недели
+    delta_days = (target_week - 1) * 7 + target_weekday
+    lesson_date = first_monday + datetime.timedelta(days=delta_days)
+    return lesson_date
+
+
+@csrf_exempt
+def upload_schedule(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Только POST-запросы разрешены"}, status=405)
+
+    excel_file = request.FILES.get("excel_file")
+    if not excel_file:
+        return JsonResponse({"error": "Файл не загружен"}, status=400)
+
+    try:
+        wb = load_workbook(filename=excel_file, read_only=True)
+        ws = wb.active
+        rows = list(ws.iter_rows(values_only=True))
+
+        # Первая строка: дата первого учебного дня и день недели
+        first_date_raw = rows[0][0]
+        first_weekday_name = rows[0][1]
+
+        if isinstance(first_date_raw, datetime.datetime):
+            first_date = first_date_raw.date()
+        elif isinstance(first_date_raw, datetime.date):
+            first_date = first_date_raw
+        else:
+            first_date = datetime.datetime.strptime(str(first_date_raw), "%Y-%m-%d").date()
+
+        added_count = 0
+        row_idx = 2  # начинаем со строки с группами
+
+        while row_idx < len(rows):
+            row = rows[row_idx]
+            if not row or not row[0]:
+                row_idx += 1
+                continue
+
+            if str(row[0]).startswith("Группа:"):
+                group_name = str(row[0]).replace("Группа:", "").strip()
+                group = Group.objects.filter(name=group_name).first()
+                if not group:
+                    print(f"Group not found: '{group_name}'")
+                    row_idx += 1
+                    continue
+
+                # Пропускаем заголовок таблицы (следующая строка)
+                row_idx += 2
+
+                while row_idx < len(rows):
+                    data_row = rows[row_idx]
+                    if not data_row or not data_row[0]:
+                        break  # Конец блока группы
+
+                    try:
+                        day_name, pair_num, start, end, subj_name, teacher_name, weeks_str, room = data_row[:8]
+                    except Exception:
+                        row_idx += 1
+                        continue
+
+                    subject = Subject.objects.filter(name__iexact=str(subj_name).strip()).first()
+                    if not subject:
+                        print(f"Subject not found: '{subj_name}'")
+                        row_idx += 1
+                        continue
+
+                    teacher = Teacher.objects.filter(name__iexact=str(teacher_name).strip()).first()
+                    if not teacher:
+                        print(f"Teacher not found: '{teacher_name}'")
+                        row_idx += 1
+                        continue
+
+                    weeks = parse_weeks(str(weeks_str))
+
+                    for week in weeks:
+                        lesson_date = get_date_for_week_and_day(first_date, first_weekday_name, week, day_name)
+                        Schedule.objects.create(
+                            groupId=group,
+                            subjectId=subject,
+                            teacherId=teacher,
+                            day=lesson_date,
+                            week=week,
+                            room=room,
+                            startTime=start,
+                            endTime=end,
+                        )
+                        added_count += 1
+
+                    row_idx += 1
+            else:
+                row_idx += 1
+
+        return JsonResponse({"status": "success", "added": added_count})
+    except Exception as e:
+        return JsonResponse({"error": f"Ошибка обработки файла: {e}"}, status=500)

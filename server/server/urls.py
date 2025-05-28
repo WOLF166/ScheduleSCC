@@ -70,6 +70,8 @@ urlpatterns = [
     path('api/schedule/<int:schedule_id>/', views.update_schedule, name='update_schedule'),
     path('api/schedule/<int:schedule_id>/delete/', views.delete_schedule, name='delete_schedule'),
 
+    path('upload_schedule/', views.upload_schedule, name='upload_schedule'),
+
     path("", views.mainSchedule),
     # пути reactpy
     path("", view_to_component(ap.components.renderSchedulePage)),

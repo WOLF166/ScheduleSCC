@@ -426,17 +426,17 @@ def DeleteButton(*, onClick):
 
 @component
 def ScheduleForm(
-        *,
-        styles,
-        groups,
-        teachers,
-        subjects,
-        schedule,
-        loading,
-        set_message,
-        set_error_message,
-        set_loading,
-        load_all_data,
+    *,
+    styles,
+    groups,
+    teachers,
+    subjects,
+    schedule,
+    loading,
+    set_message,
+    set_error_message,
+    set_loading,
+    load_all_data,
 ):
     subject_map = {str(s["id"]): s["name"] for s in subjects}
     teacher_map = {str(t["id"]): t["name"] for t in teachers}
@@ -456,19 +456,17 @@ def ScheduleForm(
     editing_schedule_id, set_editing_schedule_id = use_state(None)
     editing_values, set_editing_values = use_state({})
 
-    use_effect(lambda: set_schedule_group_id(str(groups[0]["id"])) if groups and not schedule_group_id else None,
-               [groups])
-    use_effect(
-        lambda: set_schedule_teacher_id(str(teachers[0]["id"])) if teachers and not schedule_teacher_id else None,
-        [teachers])
-    use_effect(
-        lambda: set_schedule_subject_id(str(subjects[0]["id"])) if subjects and not schedule_subject_id else None,
-        [subjects])
-    use_effect(lambda: set_selected_view_group(str(groups[0]["id"])) if groups and not selected_view_group else None,
-               [groups])
+    upload_status, set_upload_status = use_state("")
 
-    def on_excel_file_change(e):
-        set_message("Файл выбран. Загрузка будет реализована позже.")
+    use_effect(lambda: set_schedule_group_id(str(groups[0]["id"])) if groups and not schedule_group_id else None, [groups])
+    use_effect(lambda: set_schedule_teacher_id(str(teachers[0]["id"])) if teachers and not schedule_teacher_id else None, [teachers])
+    use_effect(lambda: set_schedule_subject_id(str(subjects[0]["id"])) if subjects and not schedule_subject_id else None, [subjects])
+    use_effect(lambda: set_selected_view_group(str(groups[0]["id"])) if groups and not selected_view_group else None, [groups])
+
+    # Форма загрузки файла отправляет POST запрос на сервер Django,
+    # где файл будет распарсен и данные добавлены в базу.
+    # Здесь мы просто отображаем форму.
+    # После загрузки данных вызывайте load_all_data() для обновления расписания.
 
     @event(prevent_default=True)
     async def submit_schedule(e):
@@ -597,7 +595,7 @@ def ScheduleForm(
                     html.td(teacher_map.get(str(s.get("teacherId")), "—")),
                     html.td(
                         html.button({"style": styles["action_button"], "onClick": lambda e, id=s["id"]: (
-                        set_editing_schedule_id(id), set_editing_values({}))}, "Редактировать"),
+                            set_editing_schedule_id(id), set_editing_values({}))}, "Редактировать"),
                         DeleteButton(onClick=lambda e, id=s["id"]: asyncio.create_task(on_delete_schedule(id))),
                     ),
                 ))
@@ -621,12 +619,21 @@ def ScheduleForm(
     return html.div(
         {"style": styles["form"]},
         html.h3("Загрузка расписания из Excel"),
-        html.input({
-            "type": "file",
-            "accept": ".xlsx,.xls",
-            "onChange": on_excel_file_change,
-            "style": {"marginBottom": "1rem"},
-        }),
+        html.form(
+            {
+                "action": "/upload_schedule/",
+                "method": "POST",
+                "enctype": "multipart/form-data",
+            },
+            html.input({
+                "type": "file",
+                "name": "excel_file",
+                "accept": ".xlsx,.xls",
+                "required": True,
+                "style": {"marginBottom": "1rem"},
+            }),
+            html.button({"type": "submit"}, "Загрузить и распарсить"),
+        ),
         html.h3("Добавить расписание вручную"),
         html.form(
             {"onSubmit": submit_schedule},
