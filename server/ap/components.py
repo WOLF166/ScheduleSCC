@@ -93,11 +93,13 @@ def delete_subject(id_):
     cookies = {"dispatcher_id": DISPATCHER_COOKIE_VALUE}
     return requests.delete(f"http://localhost:8000/api/subjects/{id_}/delete/", cookies=cookies)
 
+
 @sync_to_async
 def fetch_schedule():
     r = requests.get("http://localhost:8000/api/schedule/")
     r.raise_for_status()
     return r.json()
+
 
 @sync_to_async
 def post_schedule(data):
@@ -106,6 +108,7 @@ def post_schedule(data):
     r.raise_for_status()
     return r
 
+
 @sync_to_async
 def update_schedule(id_, data):
     cookies = {"dispatcher_id": DISPATCHER_COOKIE_VALUE}
@@ -113,12 +116,14 @@ def update_schedule(id_, data):
     r.raise_for_status()
     return r
 
+
 @sync_to_async
 def delete_schedule(id_):
     cookies = {"dispatcher_id": DISPATCHER_COOKIE_VALUE}
     r = requests.delete(f"http://localhost:8000/api/schedule/{id_}/delete/", cookies=cookies)
     r.raise_for_status()
     return r
+
 
 # styles
 
@@ -385,6 +390,7 @@ def ScheduleComponent():
 def renderSchedulePage():
     return ScheduleComponent()
 
+
 @component
 def DeleteButton(*, onClick):
     hovered, set_hovered = use_state(False)
@@ -420,17 +426,17 @@ def DeleteButton(*, onClick):
 
 @component
 def ScheduleForm(
-    *,
-    styles,
-    groups,
-    teachers,
-    subjects,
-    schedule,
-    loading,
-    set_message,
-    set_error_message,
-    set_loading,
-    load_all_data,
+        *,
+        styles,
+        groups,
+        teachers,
+        subjects,
+        schedule,
+        loading,
+        set_message,
+        set_error_message,
+        set_loading,
+        load_all_data,
 ):
     subject_map = {str(s["id"]): s["name"] for s in subjects}
     teacher_map = {str(t["id"]): t["name"] for t in teachers}
@@ -450,10 +456,16 @@ def ScheduleForm(
     editing_schedule_id, set_editing_schedule_id = use_state(None)
     editing_values, set_editing_values = use_state({})
 
-    use_effect(lambda: set_schedule_group_id(str(groups[0]["id"])) if groups and not schedule_group_id else None, [groups])
-    use_effect(lambda: set_schedule_teacher_id(str(teachers[0]["id"])) if teachers and not schedule_teacher_id else None, [teachers])
-    use_effect(lambda: set_schedule_subject_id(str(subjects[0]["id"])) if subjects and not schedule_subject_id else None, [subjects])
-    use_effect(lambda: set_selected_view_group(str(groups[0]["id"])) if groups and not selected_view_group else None, [groups])
+    use_effect(lambda: set_schedule_group_id(str(groups[0]["id"])) if groups and not schedule_group_id else None,
+               [groups])
+    use_effect(
+        lambda: set_schedule_teacher_id(str(teachers[0]["id"])) if teachers and not schedule_teacher_id else None,
+        [teachers])
+    use_effect(
+        lambda: set_schedule_subject_id(str(subjects[0]["id"])) if subjects and not schedule_subject_id else None,
+        [subjects])
+    use_effect(lambda: set_selected_view_group(str(groups[0]["id"])) if groups and not selected_view_group else None,
+               [groups])
 
     def on_excel_file_change(e):
         set_message("Файл выбран. Загрузка будет реализована позже.")
@@ -569,7 +581,9 @@ def ScheduleForm(
                     }, [html.option({"value": str(teach["id"])}, teach["name"]) for teach in teachers])),
                     html.td(
                         html.button({"style": styles["action_button"], "onClick": save_schedule_edit}, "Сохранить"),
-                        html.button({"style": styles["action_button"], "onClick": lambda e: set_editing_schedule_id(None)}, "Отмена"),
+                        html.button(
+                            {"style": styles["action_button"], "onClick": lambda e: set_editing_schedule_id(None)},
+                            "Отмена"),
                     ),
                 ))
             else:
@@ -582,7 +596,8 @@ def ScheduleForm(
                     html.td(subject_map.get(str(s.get("subjectId")), "—")),
                     html.td(teacher_map.get(str(s.get("teacherId")), "—")),
                     html.td(
-                        html.button({"style": styles["action_button"], "onClick": lambda e, id=s["id"]: (set_editing_schedule_id(id), set_editing_values({}))}, "Редактировать"),
+                        html.button({"style": styles["action_button"], "onClick": lambda e, id=s["id"]: (
+                        set_editing_schedule_id(id), set_editing_values({}))}, "Редактировать"),
                         DeleteButton(onClick=lambda e, id=s["id"]: asyncio.create_task(on_delete_schedule(id))),
                     ),
                 ))
@@ -691,6 +706,8 @@ def ScheduleForm(
         html.h3("Текущее расписание"),
         ScheduleTable()
     )
+
+
 # диспетчер
 
 @component
@@ -1070,7 +1087,7 @@ def DispatcherDashboard(logout_url="/dispatcher/logout/"):
                     html.td({"style": styles["td"]}, t["name"]),
                     html.td({"style": styles["td"]},
                             render_action_button("Редактировать", lambda e, id=t["id"], name=t["name"]: (
-                            set_editing_teacher_id(id), set_editing_teacher_name(name))),
+                                set_editing_teacher_id(id), set_editing_teacher_name(name))),
                             html.button({
                                 "style": {**styles["action_button"], **styles["action_button_delete"]},
                                 "onClick": lambda e, id=t["id"]: asyncio.create_task(handle_delete(delete_teacher, id)),
@@ -1116,7 +1133,7 @@ def DispatcherDashboard(logout_url="/dispatcher/logout/"):
                     html.td({"style": styles["td"]}, g["name"]),
                     html.td({"style": styles["td"]},
                             render_action_button("Редактировать", lambda e, id=g["id"], name=g["name"]: (
-                            set_editing_group_id(id), set_editing_group_name(name))),
+                                set_editing_group_id(id), set_editing_group_name(name))),
                             html.button({
                                 "style": {**styles["action_button"], **styles["action_button_delete"]},
                                 "onClick": lambda e, id=g["id"]: asyncio.create_task(handle_delete(delete_group, id)),
@@ -1162,7 +1179,7 @@ def DispatcherDashboard(logout_url="/dispatcher/logout/"):
                     html.td({"style": styles["td"]}, s["name"]),
                     html.td({"style": styles["td"]},
                             render_action_button("Редактировать", lambda e, id=s["id"], name=s["name"]: (
-                            set_editing_subject_id(id), set_editing_subject_name(name))),
+                                set_editing_subject_id(id), set_editing_subject_name(name))),
                             html.button({
                                 "style": {**styles["action_button"], **styles["action_button_delete"]},
                                 "onClick": lambda e, id=s["id"]: asyncio.create_task(handle_delete(delete_subject, id)),

@@ -1,15 +1,10 @@
 import json
-import logging
-
-import requests
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, HttpResponseNotFound, JsonResponse
 # disp
 from .models import Dispatcher
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from django.contrib.auth.decorators import login_required
-from django.utils.decorators import method_decorator
 from .models import Teacher, Group, Subject, Schedule
 
 
@@ -100,31 +95,6 @@ def getScheduleAll(request):  # Расписание
         return HttpResponseNotFound("Нет расписания")
 
 
-# def getScheduleAllForWeb(request):  # Расписание
-#
-#     groupname = request.GET.get("group")
-#     group = Group.objects.get(name=groupname)
-#     subjects = Subject.objects.all
-#     schedules = Schedule.objects.filter(groupId=group.id)
-#
-#
-#     lst = []
-#
-#     for shed in schedules:
-#         lst.append({"id": f"{shed.id}",
-#                     "groupId": f"{group.name}",
-#                     "teacherId": f"{shed.teacherId}",
-#                     "subjectId": f"{1}",
-#                     "day": f"{shed.day}",
-#                     "week": f"{shed.week}",
-#                     "room": f"{shed.room}",
-#                     "startTime": f"{shed.startTime}",
-#                     "endTime": f"{shed.endTime}"})
-#
-#     if lst:
-#         return HttpResponse(json.dumps(lst), content_type="application/json")
-#     else:
-#         return HttpResponseNotFound("Нет расписания")
 
 
 def getScheduleTeachers(request):  # Расписание
