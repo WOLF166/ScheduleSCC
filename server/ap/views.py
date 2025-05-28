@@ -545,8 +545,8 @@ def get_date_for_week_and_day(first_date, first_weekday_name, target_week, targe
     lesson_date = first_monday + datetime.timedelta(days=delta_days)
     return lesson_date
 
-
 @csrf_exempt
+@dispatcher_required
 def upload_schedule(request):
     if request.method != "POST":
         return JsonResponse({"error": "Только POST-запросы разрешены"}, status=405)
@@ -637,3 +637,14 @@ def upload_schedule(request):
         return JsonResponse({"status": "success", "added": added_count})
     except Exception as e:
         return JsonResponse({"error": f"Ошибка обработки файла: {e}"}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["DELETE"])
+@dispatcher_required
+def delete_all_schedules(request):
+    try:
+        Schedule.objects.all().delete()
+        return JsonResponse({"status": "success", "message": "Все записи удалены"})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)

@@ -71,6 +71,7 @@ urlpatterns = [
     path('api/schedule/<int:schedule_id>/delete/', views.delete_schedule, name='delete_schedule'),
 
     path('upload_schedule/', views.upload_schedule, name='upload_schedule'),
+    path('api/schedule/delete_all/', views.delete_all_schedules, name='delete_all_schedules'),
 
     path("", views.mainSchedule),
     # пути reactpy

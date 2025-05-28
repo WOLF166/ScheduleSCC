@@ -1,9 +1,10 @@
 import asyncio
 from asgiref.sync import sync_to_async
-from reactpy import component, html, use_state, use_effect, event
+from reactpy import component, html, use_state, use_effect, event, use_ref
 import requests
 import datetime
 from datetime import date
+import threading
 
 DISPATCHER_COOKIE_VALUE = "dispatcher_id"
 
@@ -121,6 +122,14 @@ def update_schedule(id_, data):
 def delete_schedule(id_):
     cookies = {"dispatcher_id": DISPATCHER_COOKIE_VALUE}
     r = requests.delete(f"http://localhost:8000/api/schedule/{id_}/delete/", cookies=cookies)
+    r.raise_for_status()
+    return r
+
+
+@sync_to_async
+def delete_all_schedules_api():
+    cookies = {"dispatcher_id": DISPATCHER_COOKIE_VALUE}
+    r = requests.delete(f"http://localhost:8000/api/schedule/delete_all/", cookies=cookies)
     r.raise_for_status()
     return r
 
@@ -426,17 +435,17 @@ def DeleteButton(*, onClick):
 
 @component
 def ScheduleForm(
-    *,
-    styles,
-    groups,
-    teachers,
-    subjects,
-    schedule,
-    loading,
-    set_message,
-    set_error_message,
-    set_loading,
-    load_all_data,
+        *,
+        styles,
+        groups,
+        teachers,
+        subjects,
+        schedule,
+        loading,
+        set_message,
+        set_error_message,
+        set_loading,
+        load_all_data,
 ):
     subject_map = {str(s["id"]): s["name"] for s in subjects}
     teacher_map = {str(t["id"]): t["name"] for t in teachers}
@@ -457,16 +466,99 @@ def ScheduleForm(
     editing_values, set_editing_values = use_state({})
 
     upload_status, set_upload_status = use_state("")
+    iframe_ref = use_ref(None)
+    selected_file, set_selected_file = use_state(None)
+    selected_file_content, set_selected_file_content = use_state(None)
+    selected_file_name, set_selected_file_name = use_state("")
 
-    use_effect(lambda: set_schedule_group_id(str(groups[0]["id"])) if groups and not schedule_group_id else None, [groups])
-    use_effect(lambda: set_schedule_teacher_id(str(teachers[0]["id"])) if teachers and not schedule_teacher_id else None, [teachers])
-    use_effect(lambda: set_schedule_subject_id(str(subjects[0]["id"])) if subjects and not schedule_subject_id else None, [subjects])
-    use_effect(lambda: set_selected_view_group(str(groups[0]["id"])) if groups and not selected_view_group else None, [groups])
+    use_effect(lambda: set_schedule_group_id(str(groups[0]["id"])) if groups and not schedule_group_id else None,
+               [groups])
+    use_effect(
+        lambda: set_schedule_teacher_id(str(teachers[0]["id"])) if teachers and not schedule_teacher_id else None,
+        [teachers])
+    use_effect(
+        lambda: set_schedule_subject_id(str(subjects[0]["id"])) if subjects and not schedule_subject_id else None,
+        [subjects])
+    use_effect(lambda: set_selected_view_group(str(groups[0]["id"])) if groups and not selected_view_group else None,
+               [groups])
 
-    # Форма загрузки файла отправляет POST запрос на сервер Django,
-    # где файл будет распарсен и данные добавлены в базу.
-    # Здесь мы просто отображаем форму.
-    # После загрузки данных вызывайте load_all_data() для обновления расписания.
+    @event(prevent_default=True)
+    async def delete_all_schedules(e):
+        set_loading(True)
+        set_message("")
+        set_error_message("")
+        try:
+            # Здесь вызывайте ваш API для удаления всех записей расписания
+            # Пример с requests или httpx:
+            # response = requests.delete("http://localhost:8000/api/schedule/delete_all/")
+            # Или ваш асинхронный вызов:
+            response = await delete_all_schedules_api()
+
+            if response.status_code in (200, 204):
+                set_message("Все записи расписания удалены")
+                await load_all_data()
+            else:
+                set_error_message(f"Ошибка удаления: {response.status_code}")
+        except Exception as ex:
+            set_error_message(f"Ошибка: {ex}")
+        finally:
+            set_loading(False)
+
+    async def on_iframe_load(e):
+        # Когда iframe загрузился — обновляем данные
+        # Можно добавить проверку, чтобы не вызывать лишний раз
+        set_upload_status("Файл загружен, обновляем таблицу...")
+        # Вызов асинхронной функции загрузки данных
+        import asyncio
+        asyncio.create_task(load_all_data())
+        # Очистим сообщение через пару секунд
+
+        threading.Timer(3, lambda: set_upload_status("")).start()
+
+    @event
+    async def on_file_change(e):
+        files = e.get("target", {}).get("files")
+        if files and len(files) > 0:
+            set_selected_file(files[0])
+            set_upload_status(f"Выбран файл: {files[0].name}")
+        else:
+            set_selected_file(None)
+            set_upload_status("Файл не выбран")
+
+    @event(prevent_default=True)
+    async def on_upload(e):
+        if not selected_file_content:
+            set_upload_status("Сначала выберите файл")
+            return
+
+        set_loading(True)
+        set_upload_status("")
+        set_message("")
+        set_error_message("")
+
+        try:
+            # Отправка файла на сервер синхронно в отдельном потоке, чтобы не блокировать event loop
+            def send_file():
+                files = {'excel_file': (selected_file_name, selected_file_content)}
+                response = requests.post("http://localhost:8000/upload_schedule/", files=files)
+                return response
+
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(None, send_file)
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("status") == "success":
+                    count = data.get("added", 0)
+                    set_upload_status(f"Успешно добавлено записей: {count}")
+                    await load_all_data()
+                else:
+                    set_error_message(data.get("error", "Ошибка загрузки"))
+            else:
+                set_error_message(f"Ошибка сервера: {response.status_code}")
+        except Exception as ex:
+            set_error_message(f"Ошибка: {ex}")
+        set_loading(False)
 
     @event(prevent_default=True)
     async def submit_schedule(e):
@@ -617,13 +709,23 @@ def ScheduleForm(
         )
 
     return html.div(
-        {"style": styles["form"]},
+        {"style": styles.get("form", {})},
         html.h3("Загрузка расписания из Excel"),
+        # Передаём ref отдельным аргументом, не в атрибутах
+        html.iframe(
+            {
+                "name": "hidden_iframe",
+                "style": {"display": "none"},
+                "onLoad": on_iframe_load,
+            },
+        ),
         html.form(
             {
                 "action": "/upload_schedule/",
                 "method": "POST",
                 "enctype": "multipart/form-data",
+                "target": "hidden_iframe",
+                "onSubmit": lambda e: set_upload_status("Файл загружается..."),
             },
             html.input({
                 "type": "file",
@@ -632,8 +734,10 @@ def ScheduleForm(
                 "required": True,
                 "style": {"marginBottom": "1rem"},
             }),
-            html.button({"type": "submit"}, "Загрузить и распарсить"),
+            html.button({"type": "submit", "style": styles.get("button", {})}, "Загрузить и распарсить"),
         ),
+        html.div({"style": {"marginTop": "1rem", "color": "green"}}, upload_status),
+
         html.h3("Добавить расписание вручную"),
         html.form(
             {"onSubmit": submit_schedule},
@@ -711,6 +815,14 @@ def ScheduleForm(
             "style": styles["input"],
         }, [html.option({"value": g["id"]}, g["name"]) for g in groups]),
         html.h3("Текущее расписание"),
+        html.div(
+            {"style": {"marginBottom": "1rem"}},
+            html.button({
+                "onClick": delete_all_schedules,
+                "disabled": loading,
+                "style": {**styles.get("button", {}), "backgroundColor": "#e74c3c"},  # красная кнопка
+            }, "Удалить всё расписание"),
+        ),
         ScheduleTable()
     )
 
