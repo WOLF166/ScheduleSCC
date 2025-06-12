@@ -54,25 +54,37 @@ def techadd(request, id, name):
 
 
  # GET
-def getSchedule(request):  # Расписание
-    groupname = request.GET.get("group")
-    group = Group.objects.get(id=groupname)
-    schedules = Schedule.objects.all()
-    lst = []
+def getSchedule(request):
+    group_id = request.GET.get("group")
+    if not group_id:
+        return HttpResponseNotFound("Не указан параметр group")
 
+    try:
+        group = Group.objects.get(id=group_id)
+    except Group.DoesNotExist:
+        return HttpResponseNotFound("Группа не найдена")
+
+    # Фильтруем расписание по группе
+    schedules = Schedule.objects.filter(groupId=group)
+
+    lst = []
     for shed in schedules:
-        lst.append({"id": f"{shed.id}",
-                    "group": f"{Group.objects.get(id=shed.groupId.pk).name}",
-                    "teacher": f"{Teacher.objects.get(id=shed.teacherId.pk).name}",
-                    "subject": f"{Subject.objects.get(id=shed.subjectId.pk).name}",
-                    "day": f"{shed.day}",
-                    "week": f"{shed.week}",
-                    "room": f"{shed.room}",
-                    "startTime": f"{shed.startTime}",
-                    "endTime": f"{shed.endTime}"})
+        lst.append({
+            "id": shed.id,
+            "groupId": shed.groupId.id,
+            "group": shed.groupId.name,
+            "teacherId": shed.teacherId.id,
+            "teacher": shed.teacherId.name,
+            "subject": shed.subjectId.name,
+            "day": shed.day.isoformat(),
+            "week": shed.week,
+            "room": shed.room,
+            "startTime": shed.startTime,
+            "endTime": shed.endTime,
+        })
 
     if lst:
-        return HttpResponse(json.dumps(lst), content_type="application/json")
+        return JsonResponse(lst, safe=False)
     else:
         return HttpResponseNotFound("Нет расписания")
 
@@ -171,8 +183,35 @@ def mainSchedule(request):
     return render(request, "page.html")
 
 
-# def dispatcherPage(request):
-#     return render(request, "login.html")
+@require_http_methods(["GET"])
+def get_schedule(request):
+    year = request.GET.get('year', datetime.date.today().year)
+    week = request.GET.get('week', datetime.date.today().isocalendar()[1])
+    group_id = request.GET.get('group')
+    teacher_id = request.GET.get('teacher')
+
+    queryset = Schedule.objects.filter(week=week)
+
+    if year:
+        queryset = queryset.filter(day__year=year)
+    if group_id:
+        queryset = queryset.filter(groupId=group_id)
+    if teacher_id:
+        queryset = queryset.filter(teacherId=teacher_id)
+
+    data = list(queryset.values(
+        'id', 'day', 'week', 'startTime', 'endTime', 'room',
+        'groupId__name', 'teacherId__name', 'subjectId__name'
+    ).order_by('day', 'startTime'))
+
+    # Переименовываем поля для фронтенда
+    for item in data:
+        item['group'] = item.pop('groupId__name')
+        item['teacher'] = item.pop('teacherId__name')
+        item['subject'] = item.pop('subjectId__name')
+        item['day'] = item['day'].isoformat()
+
+    return JsonResponse(data, safe=False)
 
 
 def dispatcher_login_view(request):

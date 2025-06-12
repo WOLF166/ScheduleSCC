@@ -53,6 +53,7 @@ urlpatterns = [
     path('api/subjects/add/', views.add_subject, name='add_subject'),
     path('api/schedule/', views.schedule_list, name='subjects_list'),
     path('api/schedule/add/', views.add_schedule, name='add_schedule'),
+    path('api/getSchedule', views.get_schedule, name='get_schedule'),
 
     # Teacher
     path('api/teachers/<int:teacher_id>/', views.update_teacher, name='update_teacher'),

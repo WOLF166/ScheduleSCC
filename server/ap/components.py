@@ -2,8 +2,7 @@ import asyncio
 from asgiref.sync import sync_to_async
 from reactpy import component, html, use_state, use_effect, event, use_ref
 import requests
-import datetime
-from datetime import date
+from datetime import datetime, date, timedelta
 import threading
 
 DISPATCHER_COOKIE_VALUE = "dispatcher_id"
@@ -207,9 +206,9 @@ select_style_hover = {
     "borderColor": "#003f7a",
 }
 
-# Table styles with rounded corners and subtle shadows
+
 table_style = {
-    "width": "90vw",  # 90% of the viewport width
+    "width": "90vw",
     "maxWidth": "100%",
     "margin": "0 auto",
     "borderCollapse": "separate",
@@ -252,139 +251,261 @@ empty_row_style = {
     "textAlign": "center",
 }
 
+top_right_button_style = {
+    "position": "absolute",
+    "top": "2rem",
+    "right": "2rem",
+    "background": "#2980b9",
+    "color": "#fff",
+    "padding": "0.6rem 1.3rem",
+    "borderRadius": "8px",
+    "fontWeight": "700",
+    "fontSize": "1.1rem",
+    "textDecoration": "none",
+    "boxShadow": "0 4px 12px rgba(41, 128, 185, 0.15)",
+    "transition": "background 0.2s",
+    "zIndex": "100",
+}
+
+DAYS_RU = [
+    ("Понедельник", 0),
+    ("Вторник", 1),
+    ("Среда", 2),
+    ("Четверг", 3),
+    ("Пятница", 4),
+]
+
 
 @component
 def ScheduleComponent():
     schedules, set_schedules = use_state([])
     groups, set_groups = use_state([])
+    teachers, set_teachers = use_state([])
     selected_date, set_selected_date = use_state(date.today().isoformat())
     selected_group, set_selected_group = use_state("")
-    is_select_hovered, set_select_hovered = use_state(False)
-
-    select_style_base = {
-        "padding": "0.6rem 1.2rem",
-        "borderRadius": "10px",
-        "backgroundColor": "#fff",
-        "color": "#0055A5",
-        "fontSize": "1.1rem",
-        "minWidth": "220px",
-        "boxShadow": "0 2px 6px rgba(0,85,165,0.15)",
-        "transition": "border-color 0.3s ease",
-        "cursor": "pointer",
-    }
-
-    # Новый стиль для кнопки перехода
-    top_right_button_style = {
-        "position": "absolute",
-        "top": "2rem",
-        "right": "2rem",
-        "background": "#2980b9",
-        "color": "#fff",
-        "padding": "0.6rem 1.3rem",
-        "borderRadius": "8px",
-        "fontWeight": "700",
-        "fontSize": "1.1rem",
-        "textDecoration": "none",
-        "boxShadow": "0 4px 12px rgba(41, 128, 185, 0.15)",
-        "transition": "background 0.2s",
-        "zIndex": "100",
-    }
-
-    def select_style():
-        style = select_style_base.copy()
-        style["border"] = "1.5px solid #003f7a" if is_select_hovered else "1.5px solid #0055A5"
-        return style
+    selected_teacher, set_selected_teacher = use_state("")
+    week_mode, set_week_mode = use_state(False)
+    week_number, set_week_number = use_state(1)  # Инициализация недели значением 1
+    year, set_year = use_state(date.today().year)
 
     async def load_data():
         groups_data = await fetch_groups()
         set_groups(groups_data)
-
+        teachers_data = await fetch_teachers()
+        set_teachers(teachers_data)
         if groups_data:
-            first_group = groups_data[0]
-            set_selected_group(first_group['name'])
+            set_selected_group(groups_data[0]['name'])
+            await fetch_group_schedule(groups_data[0]['id'])
 
-            schedule_data = await fetch_schedule_data(first_group['id'])
-            set_schedules(schedule_data)
+    async def fetch_group_schedule(group_id):
+        data = await fetch_schedule_data(group_id)
+        set_schedules(data)
 
-    def start_load_data():
-        asyncio.create_task(load_data())
+    def get_selected_group_id():
+        return next((g['id'] for g in groups if g['name'] == selected_group), None)
 
-    use_effect(start_load_data, [])
+    def get_selected_teacher_id():
+        return next((t['id'] for t in teachers if t['name'] == selected_teacher), None)
+
+    def toggle_week_mode(event=None):
+        new_mode = not week_mode
+        set_week_mode(new_mode)
+        if new_mode:
+            set_week_number(1)  # При включении недельного режима устанавливаем неделю в 1
+        else:
+            set_selected_date(date.today().isoformat())
+
+    def handle_week_change(e):
+        set_week_number(int(e['target']['value']))
+
+    def handle_year_change(e):
+        set_year(int(e['target']['value']))
 
     async def handle_group_change(e):
         group_name = e['target']['value']
         set_selected_group(group_name)
-
+        set_selected_teacher("")
         group_id = next((g['id'] for g in groups if g['name'] == group_name), None)
         if group_id is not None:
-            data = await fetch_schedule_data(group_id)
-            set_schedules(data)
+            await fetch_group_schedule(group_id)
+        else:
+            set_schedules([])
 
-    filtered = [
-        item for item in schedules
-        if item.get("day") == selected_date and item.get("group") == selected_group
-    ]
+    def handle_teacher_change(e):
+        teacher_name = e['target']['value']
+        set_selected_teacher(teacher_name)
+        set_selected_group("")
 
-    # Обертка для позиционирования кнопки (relative)
+    def effect_load_data():
+        asyncio.create_task(load_data())
+    use_effect(effect_load_data, [])
+
+    def filter_schedule():
+        if selected_group:
+            group_id = get_selected_group_id()
+            if week_mode:
+                return [item for item in schedules if item.get("groupId") == group_id and item.get("week") == week_number]
+            else:
+                return [item for item in schedules if item.get("groupId") == group_id and item.get("day") == selected_date]
+        elif selected_teacher:
+            teacher_id = get_selected_teacher_id()
+            if week_mode:
+                return [item for item in schedules if item.get("teacherId") == teacher_id and item.get("week") == week_number]
+            else:
+                return [item for item in schedules if item.get("teacherId") == teacher_id and item.get("day") == selected_date]
+        else:
+            return []
+
+    def filter_schedule_by_day_of_week(day_idx):
+        filtered = filter_schedule()
+        return sorted(
+            [item for item in filtered if datetime.strptime(item["day"], "%Y-%m-%d").weekday() == day_idx],
+            key=lambda x: x["startTime"]
+        )
+
+    def filter_schedule_by_day():
+        filtered = filter_schedule()
+        return sorted(filtered, key=lambda x: x["startTime"])
+
+    def go_to_dispatcher_login(event):
+        import webbrowser
+        webbrowser.open("http://localhost:8000/dispatcher/dashboard")
+
     return html.div(
-        {"style": {**main_style, "position": "relative"}},
-        # КНОПКА В ПРАВОМ ВЕРХНЕМ УГЛУ
-        html.a(
-            {
-                "href": "/dispatcher/dashboard/",
-                "style": top_right_button_style,
-            },
-            "Войти как диспетчер"
-        ),
+        {"style": {**main_style, "position": "relative", "minHeight": "100vh", "display": "flex", "flexDirection": "column"}},
         html.header(
-            {"style": header_style},
+            {"style": {**header_style, "position": "relative"}},
             html.h1("Расписание занятий"),
-            html.p("Выберите группу и дату")
+            html.p("Выберите группу или преподавателя и дату"),
+            html.a(
+                {
+                    "href": "/dispatcher/dashboard/",
+                    "style": top_right_button_style,
+                },
+                "Войти как диспетчер"
+            ),
         ),
-        html.div(
-            {"style": filter_container},
+        html.div({"style": filter_container},
             html.select({
                 "value": selected_group,
                 "onChange": handle_group_change,
-                "style": select_style(),
-                "onMouseEnter": lambda e: set_select_hovered(True),
-                "onMouseLeave": lambda e: set_select_hovered(False),
+                "style": select_style,
             },
+                [html.option({"value": ""}, "Все группы")] +
                 [html.option({"value": group['name']}, group['name']) for group in groups]
+            ),
+            html.select({
+                "value": selected_teacher,
+                "onChange": handle_teacher_change,
+                "style": select_style,
+            },
+                [html.option({"value": ""}, "Все преподаватели")] +
+                [html.option({"value": teacher['name']}, teacher['name']) for teacher in teachers]
             ),
             html.input({
                 "type": "date",
                 "value": selected_date,
                 "onChange": lambda e: set_selected_date(e["target"]["value"]),
-                "style": select_style_base,
-            })
+                "style": {**select_style, "display": "none" if week_mode else "inline-block"},
+            }),
+            html.button({
+                "onClick": toggle_week_mode,
+                "style": {
+                    **select_style,
+                    "backgroundColor": "#2980b9" if week_mode else "#0055A5",
+                    "color": "white",
+                    "marginLeft": "10px",
+                },
+            }, "Неделя" if not week_mode else "День"),
+            html.input({
+                "type": "number",
+                "min": "1",
+                "max": "53",
+                "value": week_number,
+                "onChange": handle_week_change,
+                "style": {**select_style, "width": "80px", "display": "inline-block" if week_mode else "none"},
+                "placeholder": "Неделя"
+            }),
         ),
         html.div(
-            html.table(
-                {"style": table_style},
-                html.thead(
-                    html.tr(
-                        html.th({"style": th_base_style}, "Кабинет"),
-                        html.th({"style": th_base_style}, "Предмет"),
-                        html.th({"style": th_base_style}, "Преподаватель"),
-                        html.th({"style": th_base_style}, "Время"),
-                    )
-                ),
-                html.tbody(
-                    [html.tr(
-                        {"style": tr_style},
-                        html.td({"style": td_base_style}, item["room"]),
-                        html.td({"style": td_base_style}, item["subject"]),
-                        html.td({"style": td_base_style}, item["teacher"]),
-                        html.td({"style": td_base_style}, item["startTime"]),
-                    ) for item in filtered] if filtered else [
-                        html.tr(
-                            html.td(
-                                {"colSpan": 4, "style": empty_row_style},
-                                "Нет занятий на выбранную дату"
+            {
+                "style": {
+                    "position": "relative",
+                    "padding": "20px",
+                    "borderRadius": "8px",
+                    "marginTop": "20px",
+                    "backgroundColor": "#f9f9f9",
+                    "flexGrow": 1,
+                }
+            },
+            (
+                [
+                    html.div(
+                        {"key": day_idx, "style": {"display": "inline-block", "margin": "0 10px 20px 0", "verticalAlign": "top"}},
+                        html.div(
+                            {"style": {"textAlign": "center", "color": "#0055A5", "fontWeight": "bold", "marginBottom": "8px"}},
+                            day_name
+                        ),
+                        html.table(
+                            {"style": {**table_style, "width": "220px", "minWidth": "180px", "fontSize": "0.98rem"}},
+                            html.thead(
+                                html.tr(
+                                    html.th({"style": th_base_style}, "№"),
+                                    html.th({"style": th_base_style}, "Предмет"),
+                                )
+                            ),
+                            html.tbody(
+                                [
+                                    html.tr(
+                                        {"key": idx, "style": tr_style},
+                                        html.td({"style": td_base_style}, idx + 1),
+                                        html.td({"style": td_base_style}, item.get("subject")),
+                                    )
+                                    for idx, item in enumerate(filter_schedule_by_day_of_week(day_idx))
+                                ] or [
+                                    html.tr(
+                                        html.td(
+                                            {"colSpan": 2, "style": empty_row_style},
+                                            "Нет занятий"
+                                        )
+                                    )
+                                ]
                             )
                         )
-                    ]
+                    )
+                    for (day_name, day_idx) in DAYS_RU
+                ] if week_mode else
+                html.table(
+                    {"style": table_style},
+                    html.thead(
+                        html.tr(
+                            html.th({"style": th_base_style}, "№"),
+                            html.th({"style": th_base_style}, "Кабинет"),
+                            html.th({"style": th_base_style}, "Предмет"),
+                            html.th({"style": th_base_style}, "Преподаватель"),
+                            html.th({"style": th_base_style}, "Время"),
+                        )
+                    ),
+                    html.tbody(
+                        [
+                            html.tr(
+                                {"key": idx, "style": tr_style},
+                                html.td({"style": td_base_style}, idx + 1),
+                                html.td({"style": td_base_style}, item.get("room")),
+                                html.td({"style": td_base_style}, item.get("subject")),
+                                html.td({"style": td_base_style}, item.get("teacher")),
+                                html.td({"style": td_base_style}, f"{item.get('startTime')} - {item.get('endTime')}"),
+                            )
+                            for idx, item in enumerate(filter_schedule_by_day())
+                        ] or [
+                            html.tr(
+                                html.td(
+                                    {"colSpan": 5, "style": empty_row_style},
+                                    "Нет занятий"
+                                )
+                            )
+                        ]
+                    )
                 )
             )
         ),
@@ -409,7 +530,7 @@ def DeleteButton(*, onClick):
         "border": "none",
         "padding": "0.4rem 1rem",
         "marginRight": "0.5rem",
-        "borderRadius": "12px",  # скруглённые углы
+        "borderRadius": "12px",
         "cursor": "pointer",
         "fontSize": "0.9rem",
         "fontWeight": "600",
@@ -454,7 +575,7 @@ def ScheduleForm(
     schedule_group_id, set_schedule_group_id = use_state(str(groups[0]["id"]) if groups else "")
     schedule_teacher_id, set_schedule_teacher_id = use_state(str(teachers[0]["id"]) if teachers else "")
     schedule_subject_id, set_schedule_subject_id = use_state(str(subjects[0]["id"]) if subjects else "")
-    schedule_day, set_schedule_day = use_state(datetime.date.today().isoformat())
+    schedule_day, set_schedule_day = use_state(datetime.today().isoformat())
     schedule_week, set_schedule_week = use_state(1)
     schedule_room, set_schedule_room = use_state("")
     schedule_start, set_schedule_start = use_state("")
@@ -488,10 +609,6 @@ def ScheduleForm(
         set_message("")
         set_error_message("")
         try:
-            # Здесь вызывайте ваш API для удаления всех записей расписания
-            # Пример с requests или httpx:
-            # response = requests.delete("http://localhost:8000/api/schedule/delete_all/")
-            # Или ваш асинхронный вызов:
             response = await delete_all_schedules_api()
 
             if response.status_code in (200, 204):
@@ -505,13 +622,9 @@ def ScheduleForm(
             set_loading(False)
 
     async def on_iframe_load(e):
-        # Когда iframe загрузился — обновляем данные
-        # Можно добавить проверку, чтобы не вызывать лишний раз
         set_upload_status("Файл загружен, обновляем таблицу...")
-        # Вызов асинхронной функции загрузки данных
-        import asyncio
+
         asyncio.create_task(load_all_data())
-        # Очистим сообщение через пару секунд
 
         threading.Timer(3, lambda: set_upload_status("")).start()
 
@@ -537,7 +650,6 @@ def ScheduleForm(
         set_error_message("")
 
         try:
-            # Отправка файла на сервер синхронно в отдельном потоке, чтобы не блокировать event loop
             def send_file():
                 files = {'excel_file': (selected_file_name, selected_file_content)}
                 response = requests.post("http://localhost:8000/upload_schedule/", files=files)
@@ -711,7 +823,6 @@ def ScheduleForm(
     return html.div(
         {"style": styles.get("form", {})},
         html.h3("Загрузка расписания из Excel"),
-        # Передаём ref отдельным аргументом, не в атрибутах
         html.iframe(
             {
                 "name": "hidden_iframe",
@@ -826,8 +937,6 @@ def ScheduleForm(
         ScheduleTable()
     )
 
-
-# диспетчер
 
 @component
 def DispatcherDashboard(logout_url="/dispatcher/logout/"):
